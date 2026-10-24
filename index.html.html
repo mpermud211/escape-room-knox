@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>El desván de Alberto Knox</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+:root{--bg:#EDEFF2;--panel:#FFFFFF;--ink:#14263A;--muted:#52627A;--line:#C5CCD8;--accent:#8A5A12;--accent-ink:#FFFFFF;--ok:#1E6B45;--bad:#A3322B;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1D2E;--panel:#17293F;--ink:#EAEFF5;--muted:#9FB0C6;--line:#2D4561;--accent:#E0B25A;--accent-ink:#1A1204;--ok:#6FD3A0;--bad:#FF8E85;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1D2E;--panel:#17293F;--ink:#EAEFF5;--muted:#9FB0C6;--line:#2D4561;--accent:#E0B25A;--accent-ink:#1A1204;--ok:#6FD3A0;--bad:#FF8E85;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Spectral,Georgia,"Times New Roman",serif}
+main{max-width:760px;margin:0 auto;padding:20px 18px 60px}
+h1{font-size:2.3rem;line-height:1.15;margin:.2em 0 .3em;font-weight:700}
+h2{font-size:1.5rem;margin:0 0 .4em}
+p{margin:.6em 0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.timer{font:700 1.6rem/1 Spectral,Georgia,serif;font-variant-numeric:tabular-nums}
+.timer.low{color:var(--bad)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0}
+.step{flex:1;min-width:48px;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:4px;font-size:.9rem;color:var(--muted);background:transparent}
+.step.done{background:var(--ok);color:var(--accent-ink);border-color:var(--ok)}
+.step.now{border-color:var(--accent);color:var(--ink);font-weight:700;border-width:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px}
+.story{font-style:italic;color:var(--muted)}
+button{font:inherit;cursor:pointer;border-radius:6px;padding:10px 18px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:700}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:400}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input,textarea,select{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+label{display:block;margin:12px 0 4px;font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.mirror{display:inline-block;transform:scaleX(-1);font-size:1.7rem;font-weight:700;padding:14px 20px;border:2px dashed var(--accent);border-radius:6px;margin:10px 0}
+.msg{margin-top:12px;font-weight:700;min-height:1.4em}
+.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+.hint{margin:8px 0;padding:8px 12px;border-left:4px solid var(--accent);background:var(--bg)}
+.opt{display:block;margin:8px 0;padding:12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-weight:400}
+.opt input{width:auto;margin-right:8px}
+.pieces{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.pc{width:44px;height:30px;border-radius:4px}
+.key{font-size:1.5rem;letter-spacing:.3em;font-weight:700}
+.match{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;align-items:center}
+@media (max-width:520px){.match{grid-template-columns:1fr}h1{font-size:1.8rem}}
+@media (prefers-reduced-motion:no-preference){.card{animation:in .35s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><strong>El desván de Alberto Knox</strong><span class="timer" id="timer" aria-live="off">45:00</span></div>
+<div class="steps" id="steps" aria-label="Progreso"></div>
+<div id="view"></div>
+</main>
+<script>
+(function(){
+var norm=function(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim()};
+var view=document.getElementById('view'),stepsEl=document.getElementById('steps'),timerEl=document.getElementById('timer');
+var cur=-1,solved=[],digits=[],hintsUsed=0,secs=45*60,timer=null,hintLvl={};
+var KEY='54637';
+var names=['Heráclito','El arjé','El Lego','Parménides','El oráculo','Llave'];
+
+function renderSteps(){stepsEl.innerHTML=names.map(function(n,i){var c=solved[i]?'done':(i===cur?'now':'');return '<div class="step '+c+'">'+(i<5?(i+1):'★')+'<br><small>'+n+'</small></div>'}).join('')}
+function tick(){secs--;if(secs<0)secs=0;var m=Math.floor(secs/60),s=secs%60;timerEl.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;timerEl.className='timer'+(secs<300?' low':'');if(secs===0){clearInterval(timer);timer=null;alert('Se acabó el tiempo. Podéis seguir, pero el destino ya ha hablado.')}}
+function esc(t){return t}
+function hintsBox(i,hs){return '<div class="row"><button class="ghost" id="hb">Pedir pista</button></div><div id="hl"></div>'}
+function wireHints(i,hs){var b=document.getElementById('hb'),l=document.getElementById('hl');hintLvl[i]=hintLvl[i]||0;function draw(){l.innerHTML=hs.slice(0,hintLvl[i]).map(function(h,k){return '<div class="hint"><b>Pista '+(k+1)+':</b> '+h+'</div>'}).join('');if(hintLvl[i]>=hs.length)b.disabled=true}
+draw();b.onclick=function(){if(hintLvl[i]<hs.length){hintLvl[i]++;hintsUsed++;draw()}}}
+function win(i,digit,extra){solved[i]=true;digits[i]=digit;renderSteps();var m=document.getElementById('msg');m.className='msg ok';m.innerHTML='¡Correcto! '+(extra||'')+' Fragmento de la llave: <span class="key">'+digit+'</span>';var nb=document.getElementById('next');if(nb)nb.style.display='inline-block';document.querySelectorAll('#view input,#view textarea,#view select').forEach(function(e){e.disabled=true});var ck=document.getElementById('check');if(ck)ck.disabled=true}
+function bad(t){var m=document.getElementById('msg');m.className='msg bad';m.textContent=t}
+function go(i){cur=i;renderSteps();P[i]()}
+function shell(i,title,body,hs){view.innerHTML='<div class="card"><h2>'+title+'</h2>'+body+'<div class="msg" id="msg" role="status"></div><div class="row"><button id="check">Comprobar</button><button id="next" style="display:none">Siguiente prueba</button></div>'+hintsBox(i,hs)+'</div>';document.getElementById('next').onclick=function(){go(i+1)};wireHints(i,hs)}
+
+var P=[
+function intro(){},
+];
+P=[];
+
+P[0]=function(){shell(0,'Prueba 1. El río de Heráclito','<p class="story">Una pared del desván tiene un mensaje reflejado. Parece escrito del revés.</p><div class="mirror">Todo fluye, nada permanece</div><p>Ese mensaje está invertido a propósito. Si lo tenéis impreso en papel, leedlo con un espejo. Heráclito resumió su idea en dos verbos. <b>¿Cuál es el verbo que dice que todo está en movimiento?</b></p><label for="a">Vuestra respuesta</label><input id="a" autocomplete="off">',['Fijaos en la primera frase del mensaje.','Es un verbo en tercera persona del singular y habla de agua en movimiento.','Empieza por «fl» y tiene cinco letras.']);
+document.getElementById('check').onclick=function(){if(norm(document.getElementById('a').value)==='fluye')win(0,'5','«Fluye» tiene cinco letras.');else bad('Todavía no. Releed el mensaje del río.')}};
+
+P[1]=function(){var f=['Tales','Anaxímenes','Heráclito','Empédocles','Demócrito'];var opts=['—','El agua','El aire','El fuego','Los cuatro elementos: tierra, aire, fuego y agua','Los átomos'];
+var rows=f.map(function(n,i){return '<label for="m'+i+'">'+n+'</label><select id="m'+i+'">'+opts.map(function(o,k){return '<option value="'+k+'">'+o+'</option>'}).join('')+'</select>'}).join('');
+shell(1,'Prueba 2. El arjé perdido','<p class="story">Las tarjetas de los filósofos se han mezclado en el suelo.</p><p>Relacionad cada filósofo con lo que defendía como principio o explicación de la naturaleza.</p>'+rows,['Tres de ellos eligieron un único elemento. Los otros dos explicaron la materia de otro modo.','Empédocles no se quedó con uno solo. Demócrito habló de piezas invisibles.','Tales: agua. Anaxímenes: aire. Heráclito: fuego.']);
+document.getElementById('check').onclick=function(){var ans=[1,2,3,4,5],ok=true;ans.forEach(function(v,i){if(+document.getElementById('m'+i).value!==v)ok=false});if(ok)win(1,'4','Empédocles hablaba de cuatro raíces.');else bad('Alguna pareja no es correcta. Repasad el capítulo 4.')}};
+
+P[2]=function(){shell(2,'Prueba 3. El Lego de Demócrito','<p class="story">Sobre la mesa hay una bolsa de piezas, igual que las que usaba Alberto para explicar los átomos.</p><div class="pieces"><span class="pc" style="background:#C0392B"></span><span class="pc" style="background:#C0392B"></span><span class="pc" style="background:#C0392B"></span><span class="pc" style="background:#2E6DB4"></span><span class="pc" style="background:#2E6DB4"></span><span class="pc" style="background:#E0B22A"></span></div><p>Una casa de Lego tiene 3 piezas rojas, 2 azules y 1 amarilla. Se desmonta entera y con las mismas piezas se construye un barco. Según Demócrito, los átomos no nacen ni se destruyen, solo se recombinan. <b>¿Cuántas piezas tiene el barco?</b></p><label for="a">Número de piezas</label><input id="a" inputmode="numeric" autocomplete="off"><p><i>Si tenéis Lego en el aula, comprobadlo con vuestras manos.</i></p>',['Piensa en qué pasa con las piezas al desmontar la casa.','Las piezas no se crean ni se pierden.','Suma las piezas de los tres colores.']);
+document.getElementById('check').onclick=function(){if(norm(document.getElementById('a').value)==='6')win(2,'6','Los átomos no se ven, pero lo explican todo.');else bad('Contad otra vez las piezas de cada color.')}};
+
+P[3]=function(){shell(3,'Prueba 4. La paradoja de Parménides','<p class="story">Tres carteles cuelgan de la viga. Solo uno es coherente con la idea de que nada nace de la nada.</p><label class="opt"><input type="radio" name="p" value="A">A. Algo puede surgir de la nada, y por eso el cambio es real.</label><label class="opt"><input type="radio" name="p" value="B">B. Lo que cambia no surge de la nada: ya existía de alguna forma.</label><label class="opt"><input type="radio" name="p" value="C">C. Lo que existe puede convertirse en nada y desaparecer sin dejar rastro.</label><label for="j">Justificad la elección en una frase (obligatorio)</label><textarea id="j" rows="2"></textarea>',['Descartad las afirmaciones que aceptan que algo surja de la nada.','También se descarta la que permite que algo se convierta en nada.','Queda la respuesta que conserva lo que existe.']);
+document.getElementById('check').onclick=function(){var s=document.querySelector('input[name=p]:checked'),j=document.getElementById('j').value.trim();if(!s)return bad('Elegid una afirmación.');if(j.split(/\s+/).length<5)return bad('Justificad con al menos cinco palabras.');if(s.value==='B')win(3,'3','Nada nace de la nada ni se destruye en la nada.');else bad('Esa afirmación contradice a Parménides. Pensad en qué niega.')}};
+
+P[4]=function(){shell(4,'Prueba 5. El oráculo','<p class="story">Una voz resuena en el desván: «Si el futuro está escrito, ¿para qué esforzarse?»</p><p>Responded con un máximo de dos frases. Es obligatorio usar las palabras <b>azar</b>, <b>destino</b> y <b>libertad</b> y que la respuesta tenga sentido.</p><label for="o">Vuestra respuesta</label><textarea id="o" rows="4"></textarea>',['Pensad qué ocurre si una parte de lo que pasa depende del azar.','Podéis defender que el destino existe pero no anula la libertad, o lo contrario.','Una estructura posible: «Aunque…, la libertad…, porque…»']);
+document.getElementById('check').onclick=function(){var t=norm(document.getElementById('o').value),miss=['azar','destino','libertad'].filter(function(w){return t.indexOf(w)<0});if(miss.length)return bad('Faltan estas palabras: '+miss.join(', ')+'.');if(t.split(' ').length<15)return bad('Desarrollad algo más la respuesta.');win(4,'7','El oráculo se queda satisfecho.')}};
+
+P[5]=function(){view.innerHTML='<div class="card"><h2>La llave final</h2><p>Ordenad los fragmentos de cada prueba y escribid la clave de cinco cifras.</p><div class="key" id="frag">'+digits.map(function(d,i){return '<span title="Prueba '+(i+1)+'">'+d+'</span> '}).join('')+'</div><label for="k">Clave</label><input id="k" inputmode="numeric" maxlength="5" autocomplete="off"><div class="msg" id="msg" role="status"></div><div class="row"><button id="check">Abrir la caja</button></div></div>';
+document.getElementById('check').onclick=function(){if(document.getElementById('k').value.trim()===KEY){solved[5]=true;renderSteps();clearInterval(timer);var used=45*60-secs,m=Math.floor(used/60),s=used%60;view.innerHTML='<div class="card"><h2>¡Habéis salido del desván!</h2><p>Tiempo empleado: <b>'+m+' min '+s+' s</b>. Pistas usadas: <b>'+hintsUsed+'</b>.</p><p class="story">Dentro de la caja hay una carta de Alberto Knox con una sola línea:</p><p style="font-size:2rem;font-weight:700;text-align:center">«¿Quién eres tú?»</p><p>Es la pregunta con la que Sofía empezó su camino. Ahora, la vuestra.</p><h2>Para terminar</h2><p><b>Prueba de autoría.</b> En cinco minutos, crear un acertijo filosófico para el siguiente grupo que juegue.</p><p><b>Reflexión.</b> ¿Qué prueba fue la más difícil y por qué? ¿Qué filósofo os pareció más convincente?</p></div>'}else{var m2=document.getElementById('msg');m2.className='msg bad';m2.textContent='La caja no se abre. Comprobad el orden de los fragmentos.'}}};
+
+function start(){view.innerHTML='<div class="card"><h1>El desván de Alberto Knox</h1><p class="story">Alberto ha dejado una carta para Sofía, pero una fuerza del destino ha cerrado la cabaña del Mayor y vosotros habéis quedado dentro.</p><p>Para salir debéis demostrar que entendéis a los filósofos de los capítulos 4, 5 y 6 de <i>El mundo de Sofía</i>. Cada prueba os dará una cifra. Con las cinco abriréis la caja final.</p><p>Trabajad en equipo: cada uno puede ser el experto de un filósofo. Tenéis <b>45 minutos</b>. Las pistas ayudan, pero se cuentan.</p><div class="row"><button id="go">Empezar</button></div></div>';document.getElementById('go').onclick=function(){timer=setInterval(tick,1000);go(0)}}
+renderSteps();start();
+})();
+</script>
+</body>
+</html>
